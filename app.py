@@ -340,8 +340,7 @@ with T[4]:
     st.markdown("**Perguntas 16 e 17 · Resultado do tratamento e associação**")
     g = d.groupby(["tratamento", "desfecho"]).size().reset_index(name="n")
     # show(px.bar(g, x="tratamento", y="n", color="desfecho", barnorm="percent", labels={"n": "%"}))
-           show(px.bar(g, x="tratamento", y="n", color="desfecho", labels={"n": "%"})
-         .update_layout(barmode="stack", barnorm="percent"))
+    show(px.bar(g, x="tratamento", y="n", color="desfecho", labels={"n": "%"}).update_layout(barmode="stack", barnorm="percent"))
     ct = pd.crosstab(d.tratamento, d.desfecho)
     if min(ct.shape) > 1:
         ex = np.outer(ct.sum(1), ct.sum(0)) / ct.values.sum()
