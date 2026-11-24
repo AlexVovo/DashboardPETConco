@@ -56,13 +56,13 @@ class OfficialDashboardTests(unittest.TestCase):
 
     def test_default_is_official_and_filters_work(self):
         app = self.run_app()
-        self.assertEqual(app.sidebar.selectbox[0].value, 'INCA — estimativas oficiais')
+        self.assertEqual(app.sidebar.selectbox[0].value, 'Fontes oficiais')
         self.assertEqual(app.metric[0].value, '781.050')
         self.assertEqual([tab.label for tab in app.tabs], [
             'Visão geral', 'Incidência', 'Estrutura', 'Acesso', 'Desfecho',
             'Câncer infantil (ICCC-3)', 'Fila e custo', 'Projeção',
         ])
-        self.assertEqual(len(app.tabs[0].metric), 6)
+        self.assertEqual(len(app.tabs[0].metric), 9)
         self.assertEqual(app.tabs[0].metric[2].value, '—')
         sex = next(x for x in app.selectbox if x.label == 'Sexo — dados nacionais')
         sex.select('Mulheres').run()
@@ -81,6 +81,22 @@ class OfficialDashboardTests(unittest.TestCase):
         self.assertEqual(app.metric[0].value, '781.050')
         self.assertTrue(any('cópia verificada' in x.value for x in app.warning))
         self.assertTrue(any('Consulta:' in x.value for x in app.caption))
+
+    def test_health_tabs_filters_and_partial_year_warning(self):
+        app = self.run_app()
+        self.assertGreater(len(app.tabs[2].dataframe), 0)
+        self.assertGreater(len(app.tabs[3].metric), 0)
+        self.assertGreater(len(app.tabs[4].metric), 0)
+        self.assertTrue(any('não é uma classificação ICCC-3' in x.value for x in app.tabs[5].info))
+        app.selectbox(key='mortality_year').select(2026).run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('não representa um ano completo' in x.value for x in app.tabs[4].warning))
+        app.text_input(key='hospital_search').set_value('hospital_inexistente_12345').run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Nenhum estabelecimento' in x.value for x in app.tabs[2].info))
+        app.multiselect(key='access_regions').set_value([]).run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Nenhum registro' in x.value for x in app.tabs[3].info))
 
 
 if __name__ == '__main__':

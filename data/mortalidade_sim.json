@@ -1,0 +1,49 @@
+{
+  "fonte": "https://dadosabertos.saude.gov.br/dataset/sim",
+  "consultado_em": "2026-11-24T10:22:44.998732-03:00",
+  "criterio": "Óbitos não fetais (TIPOBITO=2), causa básica CID-10 C00–C97, UF de residência. Não há vínculo com casos ou tratamentos do painel.",
+  "arquivo_agregado": "mortalidade_sim.csv.gz",
+  "sha256_agregado": "ef98af15e9470236370aaeafcc301439f6799cd610d237fbd43802f7636038f3",
+  "anos": [
+    {
+      "ano": 2024,
+      "registros_lidos": 1527369,
+      "obitos_cancer": 256972,
+      "ultimo_mes_com_registro": 12,
+      "sha256_zip": "a68437fc88d7e3be42466aa14d8d766b9855c360f121afc1392ac9f1ff7a795d",
+      "consultado_em": "2026-11-24T10:22:44.634730-03:00",
+      "nome_recurso": "Mortalidade Geral 2024",
+      "url": "https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SIM/csv/Mortalidade_Geral_2024_csv.zip",
+      "atualizado_no_catalogo": "2026-10-28T15:45:24.258379",
+      "situacao": "Sem indicação de preliminar no catálogo",
+      "processado_em": "2026-11-24T10:25:24.341248-03:00"
+    },
+    {
+      "ano": 2025,
+      "registros_lidos": 937033,
+      "obitos_cancer": 157298,
+      "ultimo_mes_com_registro": 9,
+      "sha256_zip": "5310e79d14656b0073310d773f0d187bf501b90d342137ac06074a9b1478654a",
+      "consultado_em": "2026-11-24T10:21:52.830360-03:00",
+      "nome_recurso": "Mortalidade Geral 2025 - preliminar",
+      "url": "https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SIM/csv/Mortalidade_Geral_2025_csv.zip",
+      "atualizado_no_catalogo": "2026-08-31T19:22:45.514092",
+      "situacao": "Preliminar",
+      "processado_em": "2026-11-24T10:25:26.771605-03:00"
+    },
+    {
+      "ano": 2026,
+      "registros_lidos": 912010,
+      "obitos_cancer": 161636,
+      "ultimo_mes_com_registro": 8,
+      "sha256_zip": "a29f9d8786914ec2b4eb3655027d693938afd69a621d927e9ce3abddadd500e8",
+      "consultado_em": "2026-11-24T10:22:44.998732-03:00",
+      "nome_recurso": "Mortalidade Geral 2026 2ª prévia",
+      "url": "https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/SIM/csv/Mortalidade_Geral_2026_csv.zip",
+      "atualizado_no_catalogo": "2026-10-09T17:23:30.692385",
+      "situacao": "Prévia parcial",
+      "processado_em": "2026-11-24T10:25:29.171335-03:00"
+    }
+  ],
+  "processado_em": "2026-11-24T10:25:29.689124-03:00"
+}

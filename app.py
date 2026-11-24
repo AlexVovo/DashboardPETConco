@@ -137,8 +137,8 @@ def show(fig, h=380):
 
 # ------------------------------------------------------------------ dados e filtros
 st.sidebar.title("Painel Oncológico")
-modo = st.sidebar.selectbox("Fonte de dados", ["INCA — estimativas oficiais", "CSV de casos", "Demonstração sintética"])
-if modo == "INCA — estimativas oficiais":
+modo = st.sidebar.selectbox("Fonte de dados", ["Fontes oficiais", "CSV de casos", "Demonstração sintética"])
+if modo == "Fontes oficiais":
     render_official()
     st.stop()
 

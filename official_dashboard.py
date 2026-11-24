@@ -6,6 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from official_data import REGIONS, TOTAL, WITHOUT_SKIN, fetch_source, read_snapshot
+from health_dashboard import load_health_data, render_structure, render_access, render_mortality
 
 
 @st.cache_data(ttl=86400, max_entries=1)
@@ -23,10 +24,10 @@ def fmt(value):
 
 def render_official():
     st.title('Painel Oncológico Integrado')
-    st.caption('Fonte oficial: INCA · Estimativa de incidência 2026–2028')
+    st.caption('Fontes oficiais · INCA · Ministério da Saúde · PAINEL-Oncologia · SIM')
     st.info('Estimativas anuais de novos casos de câncer. Não representam contagens de diagnósticos '
-            'registrados, atendimentos ou pacientes em acompanhamento.')
-    if st.sidebar.button('Consultar fonte novamente'):
+            'registrados, atendimentos ou pacientes em acompanhamento. As demais abas exibem bases próprias, com períodos e filtros identificados.')
+    if st.sidebar.button('Consultar fonte novamente', help='Consulta novamente apenas as estimativas do INCA. As outras fontes são atualizadas por nova importação.'):
         load_official.clear()
     with st.spinner('Consultando as tabelas oficiais do INCA…'):
         data, error = load_official()
@@ -40,6 +41,8 @@ def render_official():
                f"{data['atualizado_na_fonte'] or 'não informada'} · Consulta: {consulted}")
     st.markdown(f"[Consultar tabelas e notas metodológicas no INCA]({data['fonte']})")
 
+    hospital_data, access_data, mortality_data, deaths = load_health_data()
+    st.sidebar.caption('Os filtros abaixo se aplicam à incidência do INCA. As demais fontes têm filtros nas próprias abas.')
     national = pd.DataFrame(data['nacional'])
     states = pd.DataFrame(data['estados'])
     st.sidebar.radio('Segmento', ['Todos', 'Adulto', 'Pediátrico'], horizontal=True, disabled=True,
@@ -60,11 +63,20 @@ def render_official():
                    ('Diagnóstico → tratamento', '—'), ('Distância média', '—'), ('Óbitos no seguimento', '—')]
         for col, (label, value) in zip(st.columns(6), metrics):
             col.metric(label, value)
-        st.caption('—: indicador sem base integrada. Os casos são estimativas anuais de incidência.')
+        st.caption('Os casos são estimativas anuais de incidência. —: indicador que exige pacientes vinculados e não pode ser calculado combinando os totais do INCA, PAINEL-Oncologia e SIM.')
         plot = detail.dropna(subset=['casos'])
         if not plot.empty:
             st.plotly_chart(px.treemap(plot, path=['tipo'], values='casos',
                                       title='Composição dos casos estimados por tipo').update_layout(height=450))
+        st.markdown('**Resumo das outras fontes — Brasil, sem filtros de incidência**')
+        summary_year = 2025 if any(q['ano'] == 2025 for q in access_data['consultas']) else max(q['ano'] for q in access_data['consultas'])
+        access_total = next(q['total_publicado'] for q in access_data['consultas'] if q['ano'] == summary_year and q['segmento'] == 'Todas as idades')
+        a, b, c = st.columns(3)
+        a.metric('Estabelecimentos na lista MS 2026', len(hospital_data['hospitais']))
+        b.metric(f'Casos no PAINEL-Oncologia {summary_year}', fmt(access_total['casos']))
+        mortality_summary = next(m for m in mortality_data['anos'] if m['ano'] == 2024)
+        c.metric('Óbitos por câncer no SIM 2024', fmt(mortality_summary['obitos_cancer']))
+        st.caption('Cada número tem população e período próprios. Consulte as abas Estrutura, Acesso e Desfecho para recortes e limites de cobertura.')
     with tabs[1]:
         st.subheader('Incidência')
         include_skin = st.checkbox('Incluir pele não melanoma no gráfico', value=False)
@@ -119,11 +131,15 @@ def render_official():
                    'Categorias de total incluem os tipos individuais: não devem ser somadas a eles. '
                    'Arredondamentos e valores suprimidos podem produzir diferenças entre somas e totais publicados.')
 
+    with tabs[2]:
+        render_structure(hospital_data)
+    with tabs[3]:
+        render_access(access_data)
+    with tabs[4]:
+        render_mortality(mortality_data, deaths)
+    with tabs[5]:
+        render_access(access_data, pediatric=True)
     unavailable = [
-        (2, 'Estrutura de atenção', 'Hospitais e habilitações do CNES ainda não foram integrados.'),
-        (3, 'Acesso ao tratamento', 'Diagnósticos, tratamentos e tempos de acesso do PAINEL-Oncologia ainda não foram integrados.'),
-        (4, 'Desfecho', 'Óbitos do SIM e dados de seguimento para sobrevida ainda não foram integrados.'),
-        (5, 'Câncer infantil e adolescente (ICCC-3)', 'As tabelas atuais não permitem separar crianças e adolescentes nem classificar por ICCC-3.'),
         (6, 'Fila de espera e custo', 'As bases de regulação e de custos ainda não foram integradas.'),
         (7, 'Projeção de casos', 'A estimativa do INCA é anual para 2026–2028. Não há série histórica observada integrada para uma projeção adicional.'),
     ]
@@ -133,21 +149,21 @@ def render_official():
             st.info(message)
     with st.expander('Cobertura e fontes dos dados'):
         st.markdown('A integração atual contém as tabelas nacionais por sexo e localização primária e as tabelas '
-                    'das 27 UFs. A estimativa anual vale para o triênio indicado; não é uma série histórica '
+                    'das 27 UFs, além da lista de estabelecimentos habilitados do Ministério da Saúde, tabulações de acesso do PAINEL-Oncologia e óbitos agregados do SIM. A estimativa anual do INCA vale para o triênio indicado; não é uma série histórica '
                     'nem uma medição em tempo real. A classificação por localização primária não corresponde '
                     'a uma classificação de câncer infantil por ICCC-3.')
         st.dataframe(pd.DataFrame([
             {'Indicador': 'Incidência estimada', 'Fonte': 'INCA 2026–2028', 'Situação': 'Integrado'},
-            {'Indicador': 'Diagnósticos e início do tratamento', 'Fonte': 'PAINEL-Oncologia / DATASUS', 'Situação': 'Ainda não integrado'},
-            {'Indicador': 'Óbitos observados', 'Fonte': 'SIM / DATASUS', 'Situação': 'Ainda não integrado'},
-            {'Indicador': 'Hospitais habilitados', 'Fonte': 'CNES e habilitações', 'Situação': 'Ainda não integrado'},
-            {'Indicador': 'Seguimento, estadiamento e ICCC-3', 'Fonte': 'Registros de câncer compatíveis', 'Situação': 'Ainda não integrado'},
+            {'Indicador': 'Diagnósticos e início do tratamento', 'Fonte': 'PAINEL-Oncologia / DATASUS', 'Situação': 'Integrado — faixas de tempo, UF e idade; 2024–2026'},
+            {'Indicador': 'Óbitos observados', 'Fonte': 'SIM / DATASUS', 'Situação': 'Integrado — 2024; 2025 preliminar e 2026 prévia parcial'},
+            {'Indicador': 'Hospitais habilitados', 'Fonte': 'Ministério da Saúde — lista com CNES', 'Situação': 'Integrado — planilha de habilitação 2026'},
+            {'Indicador': 'Câncer infantil', 'Fonte': 'PAINEL-Oncologia', 'Situação': 'Parcial — acesso de 0–19 anos; sem ICCC-3, seguimento ou estadiamento'},
             {'Indicador': 'Fila de regulação e custos', 'Fonte': 'Regulação / SIH / SIA', 'Situação': 'Ainda não integrado'},
         ]), hide_index=True)
         st.markdown('[Fontes de saúde do DATASUS](https://datasus.saude.gov.br/informacoes-de-saude-tabnet/)')
         st.caption('O painel consulta o INCA na primeira visita e reutiliza a consulta por até 24 horas. '
                    'O botão na barra lateral permite uma nova consulta. Se a edição ou o formato mudar, '
-                   'a importação é interrompida e a cópia verificada é exibida com aviso.')
+                   'a importação é interrompida e a cópia verificada é exibida com aviso. As outras bases são cópias agregadas publicadas com o painel, atualizadas por nova importação; a data de coleta aparece em cada aba.')
     st.download_button('Baixar dados e metadados oficiais (JSON)',
                        data=json.dumps(data, ensure_ascii=False, indent=2),
                        file_name='inca_estimativa_2026.json', mime='application/json')
