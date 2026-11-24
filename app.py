@@ -11,6 +11,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from official_dashboard import render_official
+
 st.set_page_config(
     page_title="Painel Oncológico Integrado",
     page_icon=str(Path(__file__).resolve().parent / "assets" / "icon.png"),
@@ -135,8 +137,17 @@ def show(fig, h=380):
 
 # ------------------------------------------------------------------ dados e filtros
 st.sidebar.title("Painel Oncológico")
-df, demo = gerar_demo(), True
+modo = st.sidebar.selectbox("Fonte de dados", ["INCA — estimativas oficiais", "CSV de casos", "Demonstração sintética"])
+if modo == "INCA — estimativas oficiais":
+    render_official()
+    st.stop()
+
+demo = modo == "Demonstração sintética"
 up = st.sidebar.file_uploader("Dados reais (CSV)", type="csv", help="Use o esquema descrito no rodapé da página.")
+if not demo and up is None:
+    st.info("Carregue um CSV de casos para usar os indicadores de acompanhamento. As estimativas do INCA estão disponíveis em Fonte de dados.")
+    st.stop()
+df = gerar_demo() if demo else None
 if up is not None:
     raw = pd.read_csv(up)
     falta = [c for c in CORE if c not in raw.columns]
@@ -156,7 +167,9 @@ if up is not None:
             df, demo = cand, False
             if len(cand) < len(raw):
                 st.sidebar.warning(f"{len(raw) - len(cand):,} linhas descartadas por dados ausentes.".replace(",", "."))
-S, demo_h = gerar_hosp(), True
+if df is None:
+    st.stop()
+S, demo_h = (gerar_hosp(), True) if demo else (pd.DataFrame(columns=HOSP_COLS), False)
 uh = st.sidebar.file_uploader("Hospitais habilitados (CSV, opcional)", type="csv",
                               help="Colunas: " + ", ".join(HOSP_COLS))
 if uh is not None:
@@ -178,7 +191,7 @@ if amin == amax:
     st.sidebar.caption(f"Período: {amin} (único ano nos dados)")
 else:
     a0, a1 = st.sidebar.slider("Período", amin, amax, (amin, amax))
-taxa_on = st.sidebar.toggle("Taxa por 100 mil hab. (quando possível)")
+taxa_on = st.sidebar.toggle("Taxa por 100 mil hab. (aproximação de demonstração)", disabled=not demo)
 na = a1 - a0 + 1
 
 
@@ -214,7 +227,7 @@ def met(g):
 
 
 st.title("Painel Oncológico Integrado")
-st.caption("Câncer adulto e infantil · Painel Oncológico (DATASUS) · RHC-INCA · Mortalidade (SIM) · Regulação (SMSPOA)")
+st.caption("Câncer adulto e infantil · Dados do CSV carregado" if not demo else "Câncer adulto e infantil · Demonstração sintética")
 if demo:
     st.info("Dados demonstrativos (sintéticos), só para testar filtros e gráficos. Carregue um CSV real na barra lateral.")
 
