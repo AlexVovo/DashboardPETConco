@@ -58,6 +58,12 @@ class OfficialDashboardTests(unittest.TestCase):
         app = self.run_app()
         self.assertEqual(app.sidebar.selectbox[0].value, 'INCA — estimativas oficiais')
         self.assertEqual(app.metric[0].value, '781.050')
+        self.assertEqual([tab.label for tab in app.tabs], [
+            'Visão geral', 'Incidência', 'Estrutura', 'Acesso', 'Desfecho',
+            'Câncer infantil (ICCC-3)', 'Fila e custo', 'Projeção',
+        ])
+        self.assertEqual(len(app.tabs[0].metric), 6)
+        self.assertEqual(app.tabs[0].metric[2].value, '—')
         sex = next(x for x in app.selectbox if x.label == 'Sexo — dados nacionais')
         sex.select('Mulheres').run()
         self.assertFalse(app.exception)

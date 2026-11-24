@@ -49,7 +49,7 @@ Na barra lateral, selecione **CSV de casos** para usar dados individuais própri
 Regiões: Norte, Nordeste, Centro-Oeste, Sudeste, Sul. `segmento`: Adulto ou Pediátrico.
 
 ## Limitações conhecidas
-- A integração oficial atual cobre estimativas de incidência; tratamento (PAINEL-Oncologia), mortalidade observada (SIM), hospitais (CNES), seguimento/ICCC-3, filas e custos ainda não foram integrados. Consulte a aba **Cobertura e fontes**. Os dados dessas fontes não são intercambiáveis e não oferecem, necessariamente, seguimento individual vinculável.
+- A integração oficial atual cobre estimativas de incidência; tratamento (PAINEL-Oncologia), mortalidade observada (SIM), hospitais (CNES), seguimento/ICCC-3, filas e custos ainda não foram integrados. As oito abas originais são preservadas; indicadores ainda sem base aparecem como indisponíveis. Consulte **Cobertura e fontes dos dados** no rodapé. Os dados dessas fontes não são intercambiáveis e não oferecem, necessariamente, seguimento individual vinculável.
 - As estimativas por localização primária não permitem separar adultos e crianças nem produzir classificação ICCC-3, sobrevida ou evolução anual observada.
 - No modo de demonstração, população por região e fração adulto/pediátrico (`POP`, `SH`) são aproximações. O cálculo de taxas com esses denominadores fica desabilitado no modo CSV.
 - A projeção do modo CSV/demonstração é tendência linear simples, só ilustrativa; não é a estimativa oficial do INCA.

@@ -42,34 +42,52 @@ def render_official():
 
     national = pd.DataFrame(data['nacional'])
     states = pd.DataFrame(data['estados'])
-    national_tab, states_tab, coverage_tab = st.tabs(['Brasil: tipos e sexo', 'Estados e regiões', 'Cobertura e fontes'])
-    with national_tab:
-        sex = st.selectbox('Sexo — dados nacionais', ['Total', 'Homens', 'Mulheres'])
-        subset = national[national.sexo == sex]
-        total = subset.loc[subset.tipo == TOTAL, 'casos'].iloc[0]
-        no_skin = subset.loc[subset.tipo == WITHOUT_SKIN, 'casos'].iloc[0]
-        a, b = st.columns(2)
-        a.metric('Novos casos estimados por ano', fmt(total))
-        b.metric('Exceto pele não melanoma, por ano', fmt(no_skin))
+    st.sidebar.radio('Segmento', ['Todos', 'Adulto', 'Pediátrico'], horizontal=True, disabled=True,
+                     help='A tabela do INCA não separa os casos por idade.')
+    types = st.sidebar.multiselect('Tipo de câncer', sorted(set(national.tipo) - {TOTAL, WITHOUT_SKIN}), placeholder='Todos')
+    sex = st.sidebar.selectbox('Sexo — dados nacionais', ['Total', 'Homens', 'Mulheres'])
+    st.sidebar.caption('Período: estimativa anual 2026–2028')
+    subset = national[national.sexo == sex]
+    detail = subset[~subset.tipo.isin([TOTAL, WITHOUT_SKIN])].copy()
+    if types:
+        detail = detail[detail.tipo.isin(types)]
+    total = detail.casos.sum(min_count=1) if types else subset.loc[subset.tipo == TOTAL, 'casos'].iloc[0]
+    tabs = st.tabs(['Visão geral', 'Incidência', 'Estrutura', 'Acesso', 'Desfecho',
+                    'Câncer infantil (ICCC-3)', 'Fila e custo', 'Projeção'])
+    with tabs[0]:
+        metrics = [('Casos estimados/ano', fmt(total) if pd.notna(total) else '—'),
+                   ('Tipos de câncer', detail.dropna(subset=['casos']).tipo.nunique()), ('Com tratamento', '—'),
+                   ('Diagnóstico → tratamento', '—'), ('Distância média', '—'), ('Óbitos no seguimento', '—')]
+        for col, (label, value) in zip(st.columns(6), metrics):
+            col.metric(label, value)
+        st.caption('—: indicador sem base integrada. Os casos são estimativas anuais de incidência.')
+        plot = detail.dropna(subset=['casos'])
+        if not plot.empty:
+            st.plotly_chart(px.treemap(plot, path=['tipo'], values='casos',
+                                      title='Composição dos casos estimados por tipo').update_layout(height=450))
+    with tabs[1]:
+        st.subheader('Incidência')
         include_skin = st.checkbox('Incluir pele não melanoma no gráfico', value=False)
-        detail = subset[~subset.tipo.isin([TOTAL, WITHOUT_SKIN])].copy()
-        if not include_skin:
-            detail = detail[detail.tipo != 'Pele não Melanoma']
+        chart_detail = detail if include_skin else detail[detail.tipo != 'Pele não Melanoma']
         measure = st.selectbox('Indicador nacional', ['Casos estimados', 'Taxa bruta', 'Taxa ajustada'])
         field = {'Casos estimados': 'casos', 'Taxa bruta': 'taxa_bruta', 'Taxa ajustada': 'taxa_ajustada'}[measure]
-        plot = detail.dropna(subset=[field]).sort_values(field)
+        plot = chart_detail.dropna(subset=[field]).sort_values(field)
         st.plotly_chart(px.bar(plot, x=field, y='tipo', orientation='h',
                               labels={field: measure, 'tipo': 'Localização primária'},
                               title=f'{measure} por localização primária — Brasil ({sex.lower()})',
-                              color_discrete_sequence=['#1F6F78']).update_layout(height=650))
+                              color_discrete_sequence=['#1F6F78']).update_layout(height=460))
         st.caption('Taxas por 100 mil habitantes, reproduzidas da fonte. Para tumores específicos de sexo, '
                    'o denominador é a população do sexo correspondente. Taxas ajustadas por idade não devem ser somadas. '
                    'Valores não aplicáveis ou não publicados são omitidos do gráfico.')
+        st.markdown('**Pergunta 2 · Evolução no tempo**')
+        st.info('A estimativa anual para 2026–2028 não é uma série histórica de casos observados.')
+        st.markdown('**Pergunta 3 · Distribuição por idade, sexo e local de moradia**')
+        st.caption('O filtro por sexo está na barra lateral. A fonte atual não oferece distribuição por idade.')
         st.dataframe(detail.rename(columns={'tipo': 'Localização primária', 'sexo': 'Sexo', 'casos': 'Casos estimados/ano',
                                             'taxa_bruta': 'Taxa bruta/100 mil', 'taxa_ajustada': 'Taxa ajustada/100 mil'}),
                      hide_index=True)
 
-    with states_tab:
+    with tabs[1], st.expander('Distribuição por estados e regiões'):
         regions = st.multiselect('Regiões', list(REGIONS), default=list(REGIONS))
         options = sorted(states[states.regiao.isin(regions)].estado.unique())
         selected_states = st.multiselect('Estados (vazio = todos das regiões selecionadas)', options)
@@ -101,7 +119,19 @@ def render_official():
                    'Categorias de total incluem os tipos individuais: não devem ser somadas a eles. '
                    'Arredondamentos e valores suprimidos podem produzir diferenças entre somas e totais publicados.')
 
-    with coverage_tab:
+    unavailable = [
+        (2, 'Estrutura de atenção', 'Hospitais e habilitações do CNES ainda não foram integrados.'),
+        (3, 'Acesso ao tratamento', 'Diagnósticos, tratamentos e tempos de acesso do PAINEL-Oncologia ainda não foram integrados.'),
+        (4, 'Desfecho', 'Óbitos do SIM e dados de seguimento para sobrevida ainda não foram integrados.'),
+        (5, 'Câncer infantil e adolescente (ICCC-3)', 'As tabelas atuais não permitem separar crianças e adolescentes nem classificar por ICCC-3.'),
+        (6, 'Fila de espera e custo', 'As bases de regulação e de custos ainda não foram integradas.'),
+        (7, 'Projeção de casos', 'A estimativa do INCA é anual para 2026–2028. Não há série histórica observada integrada para uma projeção adicional.'),
+    ]
+    for index, title, message in unavailable:
+        with tabs[index]:
+            st.subheader(title)
+            st.info(message)
+    with st.expander('Cobertura e fontes dos dados'):
         st.markdown('A integração atual contém as tabelas nacionais por sexo e localização primária e as tabelas '
                     'das 27 UFs. A estimativa anual vale para o triênio indicado; não é uma série histórica '
                     'nem uma medição em tempo real. A classificação por localização primária não corresponde '
