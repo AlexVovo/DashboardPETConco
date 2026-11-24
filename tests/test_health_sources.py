@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 
-from health_sources import (DATA_DIR, aggregate_sim_chunk, age_band, file_hash,
+from health_sources import (DATA_DIR, aggregate_sim_chunk, age_band, file_hash, oncology_payload,
                             parse_oncology_csv, fetch_oncology)
 
 
@@ -49,6 +49,23 @@ class MortalityTests(unittest.TestCase):
 
 
 class TreatmentTests(unittest.TestCase):
+    def test_adult_query_selects_only_age_groups_from_twenty(self):
+        form = '''<select name="PAno do diagnóstico"><option value="2025|2025|4"></select>
+          <select name="Linha"><option value="UF da residência|x"></select>
+          <select name="Coluna"><option value="Tempo Tratamento|x"></select>
+          <select name="XDiagnóstico"><option value="Neoplasias Malignas|x"></select>
+          <select name="XFaixa etária"><option value="TODAS_AS_CATEGORIAS__">
+          <option value="0 a 19 anos|000-019|3">'''
+        for age in range(20, 85, 5):
+            form += f'<option value="{age} anos|{age}|3">'
+        form += '</select>'
+        query = oncology_payload(form, 2025, adult=True)
+        self.assertEqual(len(query['XFaixa etária']), 13)
+        self.assertTrue(all(int(value.split()[0]) >= 20 for value in query['XFaixa etária']))
+        self.assertEqual(query['PAno do diagnóstico'], '2025|2025|4')
+        with self.assertRaises(ValueError):
+            oncology_payload(form, 2025, pediatric=True, adult=True)
+
     def test_response_from_wrong_year_is_rejected_before_csv_download(self):
         session = Mock()
         session.post.return_value.content = b'<b>Ano do diagn\xf3stico:</b> 2026<p>'
@@ -83,6 +100,10 @@ class TreatmentTests(unittest.TestCase):
             all_ages = x[x.segmento == 'Todas as idades'].set_index('uf').casos
             ped = x[x.segmento == '0–19 anos'].set_index('uf').casos
             self.assertTrue((ped.reindex(all_ages.index, fill_value=0) <= all_ages).all())
+            adult = x[x.segmento == '20 anos ou mais'].set_index('uf').casos
+            if not adult.empty:
+                known_ages = adult.reindex(all_ages.index, fill_value=0) + ped.reindex(all_ages.index, fill_value=0)
+                self.assertTrue((known_ages <= all_ages).all())
 
 
 class HospitalTests(unittest.TestCase):

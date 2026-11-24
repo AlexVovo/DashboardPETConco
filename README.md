@@ -30,7 +30,7 @@ python scripts/update_official_data.py
 | Aba | Fonte e cobertura da cópia atual |
 |---|---|
 | Estrutura | [Lista do Ministério da Saúde](https://www.gov.br/saude/pt-br/composicao/saes/cgcan/hospitais-habilitados), aba `HABILITAÇÃO 2026`: 383 estabelecimentos com CNES, incluindo UNACON, CACON e unidades de complexos hospitalares. A aba de serviços isolados de radioterapia não está incluída. |
-| Acesso | [PAINEL-Oncologia](https://tabnet.datasus.gov.br/cgi/dhdat.exe?PAINEL_ONCO/PAINEL_ONCOLOGIABR.def): anos de diagnóstico 2024–2026, grupo `Neoplasias Malignas (Lei nº 12.732/12)`, ambos os sexos, UF de residência e faixas de tempo de tratamento. Fonte atualizada em 15/11/2026. |
+| Acesso | [PAINEL-Oncologia](https://tabnet.datasus.gov.br/cgi/dhdat.exe?PAINEL_ONCO/PAINEL_ONCOLOGIABR.def): anos de diagnóstico 2024–2026, grupo `Neoplasias Malignas (Lei nº 12.732/12)`, ambos os sexos, UF de residência e faixas de tempo de tratamento. Cópia atual: todas as idades e 0–19 anos; **20 anos ou mais** preparado no importador e no filtro, com coleta pendente por indisponibilidade do DATASUS. Fonte atualizada em 15/11/2026. |
 | Câncer infantil | O mesmo PAINEL-Oncologia, filtro de 0 a 19 anos. É um subconjunto das linhas de todas as idades, que não deve ser somado a elas. Não equivale a uma classificação ICCC-3. |
 | Desfecho | [SIM](https://dadosabertos.saude.gov.br/dataset/sim): óbitos não fetais (`TIPOBITO=2`), causa básica CID-10 C00–C97, UF de residência, sexo, faixa etária, mês e ano. 2024 sem indicação de preliminar no catálogo; 2025 preliminar com registros até setembro; 2026 2ª prévia com registros até agosto. |
 
@@ -45,6 +45,8 @@ Também é possível executar cada importação com `--source hospitals`, `--sou
 O importador valida CNES e cobertura territorial, soma das faixas de tempo versus total e soma das UFs versus total publicado. Rejeita respostas de tratamento com ano diferente do solicitado. No SIM, valida causa, tipo de óbito, data e cobertura das UFs; os arquivos de origem e o agregado têm hashes registrados. Uma atualização que falhe não substitui a cópia daquela fonte.
 
 No acesso, o percentual em até 60 dias considera apenas os casos com tempo informado. **Sem informação de tratamento não significa não tratado**; não é possível calcular média exata a partir de faixas de tempo. No SIM, bases parciais não devem ser comparadas como anos completos; ausência de meses e sub-registro são informados na aba.
+
+O recorte adulto de Acesso usa **20 anos ou mais**, conforme as faixas da fonte. Pessoas de 18 e 19 anos ficam no recorte de 0–19 anos. Após a coleta, a seleção atualiza os indicadores, gráficos, tabela e CSV daquela aba; a aba infantil permanece independente. Enquanto não houver uma consulta adulta na cópia publicada, o filtro informa a ausência e não exibe números. Idades desconhecidas não são atribuídas ao recorte adulto por subtração do total.
 
 Os testes rodam sem acesso à internet:
 

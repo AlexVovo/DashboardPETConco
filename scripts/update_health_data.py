@@ -35,16 +35,16 @@ def update_oncology(raw_dir, years):
     response.raise_for_status()
     query_url = ONCOLOGY_QUERY.replace('https:', 'http:') if response.url.startswith('http:') else ONCOLOGY_QUERY
     form = response.content.decode('iso-8859-1')
-    jobs = [(year, ped) for year in years for ped in (False, True)]
+    jobs = [(year, ped, adult) for year in years for ped, adult in [(False, False), (True, False), (False, True)]]
     results = []
-    for year, pediatric in jobs:
-        result = fetch_oncology(form, year, pediatric, raw_dir, session=session, query_url=query_url)
+    for year, pediatric, adult in jobs:
+        result = fetch_oncology(form, year, pediatric, raw_dir, session=session, query_url=query_url, adult=adult)
         results.append(result)
-        print('Tratamento:', year, '0–19' if pediatric else 'todas as idades', flush=True)
+        print('Tratamento:', year, '0–19' if pediatric else '20+' if adult else 'todas as idades', flush=True)
     records = [r for rows, _ in results for r in rows]
     metadata = [meta for _, meta in results]
     write_json(DATA_DIR / 'acesso_oncologia.json', dict(fonte=ONCOLOGY_FORM, consultado_em=now(),
-        cobertura='Grupo Neoplasias Malignas (Lei nº 12.732/12), ambos os sexos, UF de residência, ano do diagnóstico. 0–19 anos é subconjunto de Todas as idades.',
+        cobertura='Grupo Neoplasias Malignas (Lei nº 12.732/12), ambos os sexos, UF de residência, ano do diagnóstico. Recortes de 0–19 anos e 20 anos ou mais consultados diretamente na fonte; não somar recortes ao total de todas as idades.',
         consultas=metadata, dados=records))
     print('Acesso:', len(records), 'linhas', flush=True)
 

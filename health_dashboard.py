@@ -94,8 +94,14 @@ def render_access(metadata, pediatric=False):
     frame = pd.DataFrame(metadata['dados'])
     years = sorted(frame.ano.unique())
     year = st.selectbox('Ano do diagnóstico', years, index=years.index(2025) if 2025 in years else len(years)-1, key=key+'_year')
-    segment = '0–19 anos' if pediatric else st.selectbox('Faixa etária — acesso', ['Todas as idades', '0–19 anos'], key=key+'_segment')
-    query = next(q for q in metadata['consultas'] if q['ano'] == year and q['segmento'] == segment)
+    segment = '0–19 anos' if pediatric else st.selectbox('Faixa etária — acesso', ['Todas as idades', '0–19 anos', '20 anos ou mais'], key=key+'_segment')
+    if segment == '20 anos ou mais':
+        st.caption('Recorte adulto adotado nesta aba: 20 anos ou mais, consultado diretamente nas faixas etárias do DATASUS. Pessoas de 18 e 19 anos permanecem no recorte de 0–19 anos.')
+    query = next((q for q in metadata['consultas'] if q['ano'] == year and q['segmento'] == segment), None)
+    if query is None:
+        st.warning('O recorte de 20 anos ou mais ainda não foi obtido do DATASUS para este ano. '
+                   'A fonte não respondeu à última tentativa de coleta. Selecione outra faixa etária enquanto a importação não for concluída.')
+        return
     source_caption(query | {'fonte': metadata['fonte']}, f"Diagnósticos de {year} · Atualização na fonte: {query['atualizado_na_fonte']} · {segment}")
     st.caption('Filtros próprios desta aba. Grupo monitorado: Neoplasias Malignas (Lei nº 12.732/12), ambos os sexos. '
                'Não é a totalidade estimada pelo INCA nem uma base de saúde suplementar.')

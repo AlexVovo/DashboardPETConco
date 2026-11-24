@@ -98,6 +98,38 @@ class OfficialDashboardTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertTrue(any('Nenhum registro' in x.value for x in app.tabs[3].info))
 
+    def test_adult_access_filter_leaves_pediatric_tab_independent(self):
+        import json
+        app = self.run_app()
+        metadata = json.loads((Path(__file__).resolve().parents[1] / 'data/acesso_oncologia.json').read_text())
+        pediatric_before = app.tabs[5].metric[0].value
+        app.selectbox(key='access_segment').select('20 anos ou mais').run()
+        self.assertFalse(app.exception)
+        expected = next((q['total_publicado']['casos'] for q in metadata['consultas']
+                        if q['ano'] == 2025 and q['segmento'] == '20 anos ou mais'), None)
+        if expected is None:
+            self.assertEqual(len(app.tabs[3].metric), 0)
+            self.assertTrue(any('ainda não foi obtido' in x.value for x in app.tabs[3].warning))
+        else:
+            self.assertEqual(app.tabs[3].metric[0].value, f'{expected:,}'.replace(',', '.'))
+        self.assertEqual(app.tabs[5].metric[0].value, pediatric_before)
+        self.assertTrue(any('Pessoas de 18 e 19 anos' in x.value for x in app.tabs[3].caption))
+
+    def test_adult_access_uses_collected_counts_when_available(self):
+        from streamlit.testing.v1 import AppTest
+        metadata = {'fonte': 'https://tabnet.datasus.gov.br', 'consultas': [], 'dados': []}
+        for segment in ['Todas as idades', '0–19 anos', '20 anos ou mais']:
+            metadata['consultas'].append({'ano': 2025, 'segmento': segment,
+                'atualizado_na_fonte': '15/11/2026', 'consultado_em': '2026-11-24T10:00:00-03:00'})
+            metadata['dados'].append({'ano': 2025, 'segmento': segment, 'uf': 'SP',
+                'ate_30': 10, 'de_31_a_60': 15, 'mais_60': 25, 'sem_informacao': 50, 'casos': 100})
+        app = AppTest.from_string('from health_dashboard import render_access\nrender_access(' + repr(metadata) + ')').run()
+        app.selectbox(key='access_segment').select('20 anos ou mais').run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.metric[0].value, '100')
+        self.assertEqual(app.metric[1].value, '50')
+        self.assertEqual(app.metric[2].value, '50.0%')
+
 
 if __name__ == '__main__':
     unittest.main()

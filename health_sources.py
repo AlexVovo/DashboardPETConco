@@ -133,7 +133,9 @@ class OncologyForm(HTMLParser):
             self.current = None
 
 
-def oncology_payload(form_html, year, pediatric=False):
+def oncology_payload(form_html, year, pediatric=False, adult=False):
+    if pediatric and adult:
+        raise ValueError('Selecione apenas um recorte etário.')
     form = OncologyForm()
     form.feed(form_html)
     options = form.options
@@ -148,6 +150,12 @@ def oncology_payload(form_html, year, pediatric=False):
     payload['XDiagnóstico'] = next(o['value'] for o in options['XDiagnóstico'] if o['value'].startswith('Neoplasias Malignas'))
     if pediatric:
         payload['XFaixa etária'] = next(o['value'] for o in options['XFaixa etária'] if o['value'].startswith('0 a 19 anos|'))
+    elif adult:
+        values = [o['value'] for o in options['XFaixa etária']
+                  if re.match(r'(?:20|25|30|35|40|45|50|55|60|65|70|75|80) ', o['value'])]
+        if len(values) != 13:
+            raise ValueError('Faixas adultas da fonte mudaram; revisar importador.')
+        payload['XFaixa etária'] = values
     return payload
 
 
@@ -188,10 +196,10 @@ def parse_oncology_csv(text, year, segment):
     return records, published_total
 
 
-def fetch_oncology(form_html, year, pediatric, raw_dir, session=None, query_url=ONCOLOGY_QUERY):
+def fetch_oncology(form_html, year, pediatric, raw_dir, session=None, query_url=ONCOLOGY_QUERY, adult=False):
     session = session or requests.Session()
-    payload = oncology_payload(form_html, year, pediatric)
-    response = session.post(query_url, data=urlencode(payload, encoding='iso-8859-1').encode(),
+    payload = oncology_payload(form_html, year, pediatric, adult=adult)
+    response = session.post(query_url, data=urlencode(payload, encoding='iso-8859-1', doseq=True).encode(),
                              headers={'Content-Type': 'application/x-www-form-urlencoded'}, timeout=(15, 90))
     response.raise_for_status()
     html = response.content.decode('iso-8859-1')
@@ -199,6 +207,8 @@ def fetch_oncology(form_html, year, pediatric, raw_dir, session=None, query_url=
         raise ValueError('Resposta retornou outro ano; recusando dados.')
     if pediatric and '0 a 19 anos' not in html:
         raise ValueError('Filtro pediátrico não foi confirmado pela fonte.')
+    if adult and ('20 a 24 anos' not in html or '80 anos e mais' not in html):
+        raise ValueError('Filtro adulto não foi confirmado pela fonte.')
     link = re.search(r'HREF=([^>]+\.csv)', html)
     updated = re.search(r'Data de atualização dos dados:</strong>\s*([\d/]+)', html)
     if not link or not updated:
@@ -206,9 +216,9 @@ def fetch_oncology(form_html, year, pediatric, raw_dir, session=None, query_url=
     csv_response = session.get(urljoin(query_url, link.group(1)), timeout=(15, 60))
     csv_response.raise_for_status()
     text = csv_response.content.decode('iso-8859-1')
-    segment = '0–19 anos' if pediatric else 'Todas as idades'
+    segment = '0–19 anos' if pediatric else '20 anos ou mais' if adult else 'Todas as idades'
     records, total = parse_oncology_csv(text, year, segment)
-    name = f'oncologia_{year}_{"ped" if pediatric else "todos"}'
+    name = f'oncologia_{year}_{"ped" if pediatric else "adultos" if adult else "todos"}'
     Path(raw_dir, name + '.html').write_text(html, encoding='utf-8')
     Path(raw_dir, name + '.csv').write_text(text, encoding='utf-8')
     return records, dict(ano=year, segmento=segment, atualizado_na_fonte=updated.group(1),
