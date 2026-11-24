@@ -3,13 +3,19 @@
 Fontes previstas: Painel Oncológico (DATASUS), RHC-INCA, SIM e Painel Regulador (SMSPOA).
 Rodar:  pip install -r requirements.txt  &&  streamlit run app.py
 """
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-st.set_page_config(page_title="Painel Oncológico Integrado", layout="wide")
+st.set_page_config(
+    page_title="Painel Oncológico Integrado",
+    page_icon=str(Path(__file__).resolve().parent / "assets" / "icon.png"),
+    layout="wide",
+)
 px.defaults.template = "plotly_white"
 px.defaults.color_discrete_sequence = ["#1F6F78", "#D9822B", "#5B4B8A", "#3E8E41", "#B23A48", "#2E86C1", "#8C6D46", "#6C7A89"]
 
